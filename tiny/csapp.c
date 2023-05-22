@@ -578,13 +578,14 @@ void Listen(int s, int backlog)
 	unix_error("Listen error");
 }
 
-int Accept(int s, struct sockaddr *addr, socklen_t *addrlen) 
+/*소켓 연결을 수락하기 위해 accept 시스템콜 수행*/
+int Accept(int s, struct sockaddr *addr, socklen_t *addrlen) //s=소켓파일디스크립터
 {
-    int rc;
+    int rc; //accept의 반환값을 저장하기 위한 변수
 
-    if ((rc = accept(s, addr, addrlen)) < 0)
-	unix_error("Accept error");
-    return rc;
+    if ((rc = accept(s, addr, addrlen)) < 0) //accept함수의 반환값이 0보다 작다면
+	unix_error("Accept error"); //unix_error 함수 호출하여 에러 처리. unix_error 오류 메시지를 출력하고 프로그램 종료
+    return rc; //accept함수 반환값. 새로 연결된 소켓 파일 디스크립터를 의미.
 }
 
 void Connect(int sockfd, struct sockaddr *serv_addr, int addrlen) 

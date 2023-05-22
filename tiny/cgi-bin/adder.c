@@ -19,6 +19,8 @@ int main(void) {
 	n2 = atoi(arg2);
     }
 
+    method = getenv("REQIEST_METHOD");
+
     /* Make the response body */
     // content인자에 html바디를 담음.
     sprintf(content, "Welcome to add.com: ");

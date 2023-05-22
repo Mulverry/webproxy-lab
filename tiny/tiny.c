@@ -22,14 +22,15 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg,
 
 // 입력 ./tiny 8000 / argc = 2, argv[0] = tiny, argv[1] = 8000
 int main(int argc, char **argv) { //첫 번째 매개변수 argc는 옵션의 개수이며, argv는 옵션 문자열의 배열이다.
-  int listenfd, connfd;
+  int listenfd, connfd; //소켓 파일 디스크립터: 듣기 식별자, 연결 식별자
   char hostname[MAXLINE], port[MAXLINE];
-  socklen_t clientlen;
-  struct sockaddr_storage clientaddr;
+  socklen_t clientlen; //클라이언트 주소 구조체의 크기 저장
+  struct sockaddr_storage clientaddr; //클라이언트 소켓 주소정보 저장
 
-  /* Check command line args */
+  /* Check command line args
+  명령행 인수의 개수를 검사하여 올바른 개수가 아니면 오류 메시지를 출력하고 프로그램을 종료*/
   if (argc != 2) {
-    fprintf(stderr, "usage: %s <port>\n", argv[0]);
+    fprintf(stderr, "usage: %s <port>\n", argv[0]); //stderr스트림에 usage:프로그램이름<port> 형식의 표준에러 메시지 출력
     exit(1);
   }
 
@@ -38,11 +39,11 @@ int main(int argc, char **argv) { //첫 번째 매개변수 argc는 옵션의 �
   listenfd = Open_listenfd(argv[1]); // 듣기소켓 오픈. 인자로 포트번호 넘겨줌
 
 //무한서버 루트 실행
-  while (1) { 
+  while (1) { //while true임.
     clientlen = sizeof(clientaddr); // accept 함수 인자에 넣기 위한 주소 길이를 계산
     
     // line:netp:tiny:accept 반복적으로 연결요청 접수
-    // accept 함수는 1. 듣기 식별자, 2. 소켓주소구조체의 주소, 3. 주소(소켓구조체)의 길이를 인자로 받는다.
+    // accept 함수는 1. 듣기 식별자, 2. 소켓주소구조체의 주소, 3. 주소(소켓구조체)의 길이를 인자로 받아서 새로 연결된 소켓 파일 디스크립터 리턴
     connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);  
     
     // Getaddrinfo는 호스트 이름: 호스트 주소, 서비스 이름: 포트 번호의 스트링 표시를 소켓 주소 구조체로 변환
@@ -57,22 +58,24 @@ int main(int argc, char **argv) { //첫 번째 매개변수 argc는 옵션의 �
 
 void doit(int fd)
 {
-  int is_static;
-  struct stat sbuf;
-  char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
+  int is_static; //1이면 정적컨텐츠, 0이면 동적컨텐츠.
+  struct stat sbuf; //파일 정보를 저장하기 위한 구조체 변수. stat함수를 사용하여 파일 정보 가져올 때 사용됨.
+  char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE]; //buf는 요청라인 및 헤더를 저장하기 위한 버퍼. method는 http메소드 version은 http버전.
   char filename[MAXLINE], cgiargs[MAXLINE];
-  rio_t rio;  // rio_readlineb를 위해 rio_t 타입(구조체)의 읽기 버퍼를 선언
+  rio_t rio;  // rio_readlineb를 위해 rio_t 타입(구조체)의 읽기 버퍼를 선언. 읽읽기버퍼와 관련된 정보 저장.
 
   /*Read request line and headers*/
   /* Rio = Robust I/O */
   // rio_t 구조체를 초기화 해준다.
-  Rio_readinitb(&rio, fd); // &rio 주소를 가지는 읽기 버퍼와 식별자 connfd를 연결한다.
-  Rio_readlineb(&rio, buf, MAXLINE);// 버퍼에서 읽은 것이 담겨있다.
+  Rio_readinitb(&rio, fd); // rio구조체 초기화. &rio 주소를 가지는 읽기 버퍼와 식별자 connfd를 연결하여 읽기작업을 수행할 준비함.
+  Rio_readlineb(&rio, buf, MAXLINE);// 버퍼에서 읽은 것이 담겨있다. rio 구조체를 사용하여 파일 디스크립터로부터 한 줄 데이터를 읽어와서 버퍼 buf에 저장.
   printf("Request headers: \n");
-  printf("%s", buf);  // "GET / HTTP/1.1"
+  printf("%s", buf);  // "GET 버퍼에서 읽은 것. ex) GET /cat.mp4 /HTTP/1.1
   sscanf(buf, "%s %s %s", method, uri, version);// 버퍼에서 자료형을 읽는다, 분석한다.
 
-  if (strcasecmp(method, "GET")){//Tiny에 다른 메소드 요청하면 에러 메시지 보내고 main 루틴으로 돌아옴.
+//숙제 11.11. HTTP HEAD 메소드 지원
+  // if (strcasecmp(method, "GET")){//Tiny에 다른 메소드 요청하면 에러 메시지 보내고 main 루틴으로 돌아옴. strcasecmp(method, "GET")은 문자열 method와 문자열 "GET"을 대소문자 구분 없이 비교하는 함수
+  if (strcasecmp(method, "GET") != 0 || strcasecmp(method, "HEAD") != 0){
     clienterror(fd, method, "501", "Not implemented", "Tiny does not implement this method");
     return;
   }
@@ -90,19 +93,19 @@ void doit(int fd)
 
   /* Serve static content */
   if (is_static){
-    // 파일 읽기 권한이 있는지 확인하기
+    // 파일 읽기 권한이 있는지 확인하기. is_static이 0이 아닌 경우(정적컨텐츠)에 실행됨.
     // S_ISREG : 일반 파일인가? , S_IRUSR: 읽기 권한이 있는지? S_IXUSR 실행권한이 있는가?
-    if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {
+    if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {//sbuf.st_mode : sbuf구조체의 st_mode가 일반파일인지 확인 
       clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't read the file"); // 권한이 없다면 클라이언트에게 에러를 전달
       return;
     }
-    serve_static(fd, filename, sbuf.st_size); //권한이 있다면 정적 컨텐츠 제공
+    serve_static(fd, filename, sbuf.st_size, method); //권한이 있다면 정적 컨텐츠 제공
   } else {/* Serve dynamic content */
     if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)){ // 이 파일이 실행가능한지 검증
       clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't run the CGI program"); // 실행이 불가능하다면 에러를 전달
       return;
     }
-    serve_dynamic(fd, filename, cgiargs); // 실행가능하면 동적컨텐츠 제공
+    serve_dynamic(fd, filename, cgiargs, method); // 실행가능하면 동적컨텐츠 제공
   }
 }
 
@@ -159,20 +162,24 @@ int parse_uri(char *uri, char *filename, char *cgiargs){
 
 
 
-void serve_static(int fd, char*filename, int filesize){
+void serve_static(int fd, char*filename, int filesize, char* method){
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
 
   /* 클라이언트에게 응답해더 보내기*/
   get_filetype(filename, filetype);       //line:netp:servestatic:getfiletype
   sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
-  sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+  sprintf(buf, "%sServer: Tiny Web Server\r\n", buf); //sprintf: 문자열을 buf 버퍼에 형식화하여 저장하는 함수. 
   sprintf(buf, "%sConnection: close\r\n", buf);
   sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
   sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
   Rio_writen(fd, buf, strlen(buf));       //line:netp:servestatic:endserve
   printf("Response headers:\n");
   printf("%s", buf);
+
+  if (strcasecmp(method, "HEAD") = 0)
+    return;
+
   /*클라이언트에게 응답 본체 보내기*/
   srcfd = Open(filename, O_RDONLY, 0);
   srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
@@ -201,7 +208,7 @@ void get_filetype(char *filename, char *filetype)
 }  
 
 
-void serve_dynamic(int fd, char *filename, char *cgiargs) 
+void serve_dynamic(int fd, char *filename, char *cgiargs, char *method) 
 {
     char buf[MAXLINE], *emptylist[] = { NULL };
 
@@ -211,14 +218,16 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
     sprintf(buf, "Server: Tiny Web Server\r\n");
     Rio_writen(fd, buf, strlen(buf));
   
-    if (Fork() == 0) { /* Child */ //line:netp:servedynamic:fork
-	/* Real server would set all CGI vars here */
-	setenv("QUERY_STRING", cgiargs, 1); //line:netp:servedynamic:setenv
-	Dup2(fd, STDOUT_FILENO);         /* Redirect stdout to client */ //line:netp:servedynamic:dup2
-	Execve(filename, emptylist, environ); /* Run CGI program */ //line:netp:servedynamic:execve
+    if (Fork() == 0) { /* Child 자식 프로세스인 경우*/ //line:netp:servedynamic:fork
+	  /* Real server would set all CGI vars here */
+	    setenv("QUERY_STRING", cgiargs, 1); //line:netp:servedynamic:setenv cgi프로그램에 환경변수 설정. query_string 환경변수에 cgiargs값 설정.
+      setenv("REQUEST_METHOD", method, 1);
+	    Dup2(fd, STDOUT_FILENO);         /* Redirect stdout to client */ //line:netp:servedynamic:dup2 표준출력을 클라이언트소켓에 연결.
+	    Execve(filename, emptylist, environ); /* Run CGI program */ //line:netp:servedynamic:execve cgi프로그램 실행하고 실행결과 반환. execve로 filename을 실행하고 인자로 빈 리스트와 현재 환경변수 전달.
     }
-    Wait(NULL); /* Parent waits for and reaps child */ //line:netp:servedynamic:wait
+    Wait(NULL); /* 부모 프로세스는 자식 프로세스가 종료될 때까지 기다림. NULL을 전달하면 자식 프로세스의 종료 상태를 받지 않고 대기. */ //line:netp:servedynamic:wait
 }
+
 
 /*Tiny clienterror: 에러 메시지를 클라이언트에게 보냄*/
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg) 
@@ -241,3 +250,17 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     Rio_writen(fd, buf, strlen(buf));
     Rio_writen(fd, body, strlen(body));
 }
+
+// //p930 숙제 11.6 - a문제. tiny수정하여 모든 요청라인과 요청헤더 echo하기>
+// void echo(int connfd) 
+// {
+//     size_t n; 
+//     char buf[MAXLINE]; 
+//     rio_t rio;
+
+//     Rio_readinitb(&rio, connfd);
+//     while((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) { //line:netp:echo:eof
+// 	printf("server received %d bytes\n", (int)n);
+// 	Rio_writen(connfd, buf, n);
+//     }
+// }
