@@ -20,6 +20,7 @@ int main(void) {
     }
 
     /* Make the response body */
+    // content인자에 html바디를 담음.
     sprintf(content, "Welcome to add.com: ");
     sprintf(content, "%sTHE Internet addition portal.\r\n<p>", content);
     sprintf(content, "%sThe answer is: %d + %d = %d\r\n<p>", 
@@ -27,9 +28,12 @@ int main(void) {
     sprintf(content, "%sThanks for visiting!\r\n", content);
   
     /* Generate the HTTP response */
+    // html head 출력
     printf("Connection: close\r\n");
     printf("Content-length: %d\r\n", (int)strlen(content));
     printf("Content-type: text/html\r\n\r\n");
+
+    //html body 출력
     printf("%s", content);
     fflush(stdout);
 
